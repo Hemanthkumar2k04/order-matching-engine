@@ -1,0 +1,14 @@
+fastapi
+websockets
+sqlalchemy
+asyncpg
+redis
+aioredis
+pytest
+pytest-asyncio
+locust
+python-dotenv
+uvicorn
+pydantic
+pydantic-settings
+sortedcontainers
