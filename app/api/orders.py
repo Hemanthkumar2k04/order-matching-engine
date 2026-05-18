@@ -28,7 +28,7 @@ async def place_order(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{router_id}", response_model=OrderResponse)
+@router.get("/{order_id}", response_model=OrderResponse)
 async def get_order_status(
     order_id: int, order_service: OrderService = Depends(get_order_service)
 ):
@@ -36,3 +36,16 @@ async def get_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order Not Found")
     return order
+
+
+@router.delete("/{order_id}", response_model=OrderResponse)
+async def cancel_order(
+    order_id: int, order_service: OrderService = Depends(get_order_service)
+):
+    try:
+        order = await order_service.cancel_order(order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order Not Found")
+        return order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

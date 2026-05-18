@@ -50,10 +50,15 @@ class OrderBookService:
             orders = self.get_orders_at_price(symbol, side, price)
             for i, order in enumerate(orders):
                 if order_id == order.id:
-                    orders.remove(i)
+                    del orders[i]
                     break
 
-            if not orders and symbol in self.order_book:
+            if (
+                not orders
+                and symbol in self.order_book
+                and side in self.order_book[symbol]
+                and price in self.order_book[symbol][side]
+            ):
                 del self.order_book[symbol][side][price]
 
     def get_snapshot(self, symbol: str):
