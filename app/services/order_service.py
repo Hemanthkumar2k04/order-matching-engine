@@ -78,7 +78,7 @@ class OrderService:
 
         if order.filled_quantity < order.quantity:
             if order.type == OrderType.LIMIT:
-                self.order_book.add_order(
+                await self.order_book.add_order(
                     order.symbol, order.side, float(order.price), order
                 )
             else:
@@ -96,7 +96,7 @@ class OrderService:
             raise ValueError(f"Cannot cancel order in status {order.status.value}")
 
         # Remove from the in-memory order book
-        self.order_book.remove_order(
+        await self.order_book.remove_order(
             order.symbol, order.side.value, float(order.price), order.id
         )
 

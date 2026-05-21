@@ -16,7 +16,7 @@ class MarketDataService:
         if data:
             return data
 
-        snapshot = self.order_book.get_snapshot(symbol=symbol)
+        snapshot = await self.order_book.get_snapshot(symbol=symbol)
 
         await set_cache(f"snapshot:{symbol}", snapshot, 5)
 

@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
         restored_count = 0
         for order in active_orders:
-            global_book_order.add_order(
+            await global_book_order.add_order(
                 symbol=order.symbol, side=order.side, price=order.price, order=order
             )
             restored_count += 1

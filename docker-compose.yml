@@ -1,28 +1,74 @@
 version: '3.8'
+
 services:
   db:
     image: postgres:15-alpine
-    container_name: postgres_db
-    restart: always
+    container_name: order_engine_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: cypher
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: orders
+      POSTGRES_USER: ${POSTGRES_USER:-cypher}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      POSTGRES_DB: ${POSTGRES_DB:-orders}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cypher"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order_engine_network
+    environment:
+      # PostgreSQL configuration
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=200"
 
   cache:
     image: redis:7-alpine
-    container_name: redis_cache
-    command: redis-server --appendonly yes
-    restart: always
+    container_name: order_engine_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - order_engine_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: order_matching_engine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cypher}:${POSTGRES_PASSWORD:-pass}@db:5432/${POSTGRES_DB:-orders}
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      ENV: ${ENV:-development}
+      DEBUG: ${DEBUG:-False}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./app:/app/app
+    networks:
+      - order_engine_network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  order_engine_network:
+    driver: bridge

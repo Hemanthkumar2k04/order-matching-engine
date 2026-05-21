@@ -1,5 +1,6 @@
 from app.models import Order, Trade, OrderStatus, OrderSide, OrderType
 from app.services.orderbook_service import OrderBookService
+from app.models.memory_order import MemoryOrder
 from datetime import datetime
 
 
@@ -38,7 +39,7 @@ class MatchingEngine:
             sell_orders = symbol_book["SELL"][ask_price]
 
             while sell_orders and remaining_quantity > 0:
-                sell_order: Order = sell_orders[0]
+                sell_order: MemoryOrder = sell_orders[0]
 
                 trade_qty: float = min(
                     remaining_quantity, sell_order.quantity - sell_order.filled_quantity
@@ -78,7 +79,7 @@ class MatchingEngine:
             buy_orders = symbol_book["BUY"][bid_price]
 
             while buy_orders and remaining_quantity > 0:
-                buy_order: Order = buy_orders[0]
+                buy_order: MemoryOrder = buy_orders[0]
 
                 trade_qty: float = min(
                     remaining_quantity, buy_order.quantity - buy_order.filled_quantity

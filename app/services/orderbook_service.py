@@ -1,13 +1,14 @@
 from sortedcontainers import SortedDict
-from threading import RLock
+import asyncio
 from collections import deque
 from app.models import Order, OrderSide
+from app.models.memory_order import MemoryOrder
 
 
 class OrderBookService:
     def __init__(self) -> None:
         self.order_book = {}
-        self.lock = RLock()
+        self.lock = asyncio.Lock()
 
     def get_or_create_symbol(self, symbol: str):
         if symbol not in self.order_book:
@@ -17,37 +18,48 @@ class OrderBookService:
             }
         return self.order_book[symbol]
 
-    def add_order(self, symbol: str, side: str, price: float, order: Order):
-        with self.lock:
+    async def add_order(self, symbol: str, side: str, price: float, order: Order):
+        mem_order = MemoryOrder(
+            id=order.id,
+            symbol=order.symbol,
+            side=order.side,
+            type=order.type,
+            price=order.price,
+            quantity=order.quantity,
+            filled_quantity=order.filled_quantity,
+        )
+        async with self.lock:
             symbol_book = self.get_or_create_symbol(symbol)
             side_book = symbol_book[side]
 
             if price not in side_book:
                 side_book[price] = deque()
 
-            side_book[price].append(order)
+            side_book[price].append(mem_order)
 
-    def get_best_bid(self, symbol: str):
-        with self.lock:
+    async def get_best_bid(self, symbol: str):
+        async with self.lock:
             if symbol not in self.order_book or not self.order_book[symbol]["BUY"]:
                 return None
             return self.order_book[symbol]["BUY"].keys()[0]
 
-    def get_best_ask(self, symbol: str):
-        with self.lock:
+    async def get_best_ask(self, symbol: str):
+        async with self.lock:
             if symbol not in self.order_book or not self.order_book[symbol]["SELL"]:
                 return None
             return self.order_book[symbol]["SELL"].keys()[0]
 
-    def get_orders_at_price(self, symbol: str, side: str, price: float):
-        with self.lock:
+    async def get_orders_at_price(self, symbol: str, side: str, price: float):
+        async with self.lock:
             if symbol not in self.order_book:
                 return deque()
             return self.order_book[symbol][side].get(price, deque())
 
-    def remove_order(self, symbol: str, side: str, price: float, order_id: int):
-        with self.lock:
-            orders = self.get_orders_at_price(symbol, side, price)
+    async def remove_order(self, symbol: str, side: str, price: float, order_id: int):
+        async with self.lock:
+            if symbol not in self.order_book:
+                return
+            orders = self.order_book[symbol][side].get(price, deque())
             for i, order in enumerate(orders):
                 if order_id == order.id:
                     del orders[i]
@@ -61,8 +73,8 @@ class OrderBookService:
             ):
                 del self.order_book[symbol][side][price]
 
-    def get_snapshot(self, symbol: str):
-        with self.lock:
+    async def get_snapshot(self, symbol: str):
+        async with self.lock:
             if symbol not in self.order_book:
                 return {"bids": [], "asks": []}
             bids = []
